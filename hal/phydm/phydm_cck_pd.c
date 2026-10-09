@@ -62,6 +62,9 @@ phydm_write_cck_cca_th(
 	struct phydm_cckpd_struct	*p_cckpd_t = &p_dm->dm_cckpd_table;
 
 	PHYDM_DBG(p_dm, DBG_CCKPD, ("%s ======>\n", __func__));
+	/* monitor mode: fixed CCK PD from the rtw_monitor_cck_pd module parameter (0 = keep the CCK PD value) */
+	cca_th = rtw_monitor_cck_pd_override(p_dm->adapter, cca_th);
+
 	PHYDM_DBG(p_dm, DBG_CCKPD, ("New cck_cca_th=((0x%x))\n\n", cca_th));
 
 	if (p_cckpd_t->cur_cck_cca_thres != cca_th) {

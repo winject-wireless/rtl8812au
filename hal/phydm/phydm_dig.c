@@ -190,6 +190,9 @@ odm_write_dig(
 
 	PHYDM_DBG(p_dm, DBG_DIG, ("odm_write_dig===>\n"));
 
+	/* monitor mode: fixed IGI from the rtw_monitor_igi module parameter (0 = keep the DIG value) */
+	current_igi = rtw_monitor_igi_override(p_dm->adapter, current_igi);
+
 	/* 1 Check IGI by upper bound */
 	if (p_adaptivity->igi_lmt_en && 
 		(current_igi > p_adaptivity->adapt_igi_up) && p_dm->is_linked) {

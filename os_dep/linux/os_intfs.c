@@ -592,6 +592,71 @@ int rtw_monitor_pass_crc_err = 0;
 module_param(rtw_monitor_pass_crc_err, int, 0444);
 MODULE_PARM_DESC(rtw_monitor_pass_crc_err, "1: in monitor mode, deliver frames with a bad FCS (radiotap F_BADFCS) instead of dropping them");
 
+/*
+ * Monitor-mode receive gain. In monitor mode the PHYDM DIG parks the initial gain index (IGI) near 0x1c-0x20 and the CCK
+ * packet-detect threshold near 0x40, which gives thousands of false alarms per second and loses 10-20% of frames.
+ * Both parameters are runtime-writable (/sys/module/88XXau_wfb/parameters/), 0 keeps the stock dynamic behaviour, and
+ * they only apply while the interface is in monitor mode. The value takes effect on the next PHYDM watchdog tick (~2 s)
+ * because it is applied in odm_write_dig() / phydm_write_cck_cca_th(), so it also survives channel changes.
+ */
+int rtw_monitor_igi = 0;
+static int rtw_monitor_igi_set(const char *val, const struct kernel_param *kp)
+{
+	int v, r = kstrtoint(val, 0, &v);
+
+	if (r)
+		return r;
+	if (v != 0 && (v < 0x1c || v > 0x5a))
+		return -EINVAL;
+	rtw_monitor_igi = v;
+	return 0;
+}
+static const struct kernel_param_ops rtw_monitor_igi_ops = {
+	.set = rtw_monitor_igi_set,
+	.get = param_get_int,
+};
+module_param_cb(rtw_monitor_igi, &rtw_monitor_igi_ops, &rtw_monitor_igi, 0644);
+MODULE_PARM_DESC(rtw_monitor_igi, "monitor mode: fixed initial gain index 0x1c-0x5a (higher = less sensitive, fewer false alarms), 0 = stock DIG");
+
+int rtw_monitor_cck_pd = 0;
+static int rtw_monitor_cck_pd_set(const char *val, const struct kernel_param *kp)
+{
+	int v, r = kstrtoint(val, 0, &v);
+
+	if (r)
+		return r;
+	if (v != 0 && (v < 0x10 || v > 0xf0))
+		return -EINVAL;
+	rtw_monitor_cck_pd = v;
+	return 0;
+}
+static const struct kernel_param_ops rtw_monitor_cck_pd_ops = {
+	.set = rtw_monitor_cck_pd_set,
+	.get = param_get_int,
+};
+module_param_cb(rtw_monitor_cck_pd, &rtw_monitor_cck_pd_ops, &rtw_monitor_cck_pd, 0644);
+MODULE_PARM_DESC(rtw_monitor_cck_pd, "monitor mode: fixed CCK packet-detect threshold (BB 0xA0A) 0x10-0xf0 (higher = less sensitive), 0 = stock CCK PD");
+
+u8 rtw_monitor_igi_override(void *adapter, u8 igi)
+{
+	_adapter *a = adapter;
+	int v = READ_ONCE(rtw_monitor_igi);
+
+	if (v && a && check_fwstate(&a->mlmepriv, WIFI_MONITOR_STATE) == _TRUE)
+		return (u8)v;
+	return igi;
+}
+
+u8 rtw_monitor_cck_pd_override(void *adapter, u8 cca_th)
+{
+	_adapter *a = adapter;
+	int v = READ_ONCE(rtw_monitor_cck_pd);
+
+	if (v && a && check_fwstate(&a->mlmepriv, WIFI_MONITOR_STATE) == _TRUE)
+		return (u8)v;
+	return cca_th;
+}
+
 int rtw_tx_pwr_by_rate = CONFIG_TXPWR_BY_RATE_EN;
 module_param(rtw_tx_pwr_by_rate, int, 0644);
 MODULE_PARM_DESC(rtw_tx_pwr_by_rate, "0:Disable, 1:Enable, 2: Depend on efuse");
