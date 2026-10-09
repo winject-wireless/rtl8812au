@@ -588,6 +588,10 @@ int rtw_tx_pwr_idx_override = 0;
 module_param(rtw_tx_pwr_idx_override, int, 0644);
 MODULE_PARM_DESC(rtw_tx_pwr_idx_override, "0-63 int value to force-set all power index values to");
 
+int rtw_monitor_pass_crc_err = 0;
+module_param(rtw_monitor_pass_crc_err, int, 0444);
+MODULE_PARM_DESC(rtw_monitor_pass_crc_err, "1: in monitor mode, deliver frames with a bad FCS (radiotap F_BADFCS) instead of dropping them");
+
 int rtw_tx_pwr_by_rate = CONFIG_TXPWR_BY_RATE_EN;
 module_param(rtw_tx_pwr_by_rate, int, 0644);
 MODULE_PARM_DESC(rtw_tx_pwr_by_rate, "0:Disable, 1:Enable, 2: Depend on efuse");

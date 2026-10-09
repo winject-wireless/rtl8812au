@@ -4146,13 +4146,10 @@ static void hw_var_set_monitor(PADAPTER Adapter, u8 variable, u8 *val)
 		/* Append FCS */
 		rcr_bits |= RCR_APPFCS;
 
-#if 0
-		/*
-		   CRC and ICV packet will drop in recvbuf2recvframe()
-		   We no turn on it.
-		 */
-		rcr_bits |= (RCR_ACRC32 | RCR_AICV);
-#endif
+		/* Bad-FCS frames are delivered with F_BADFCS when rtw_monitor_pass_crc_err is set;
+		 * ICV errors stay filtered. */
+		if (rtw_monitor_pass_crc_err)
+			rcr_bits |= RCR_ACRC32;
 
 		rtw_hal_get_hwreg(Adapter, HW_VAR_RCR, (u8 *)&pHalData->rcr_backup);
 		rtw_hal_set_hwreg(Adapter, HW_VAR_RCR, (u8 *)&rcr_bits);

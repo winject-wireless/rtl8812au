@@ -442,6 +442,7 @@ struct registry_priv {
 };
 
 extern int rtw_tx_pwr_idx_override;
+extern int rtw_monitor_pass_crc_err;
 static u8 get_overridden_tx_power_index(u8 index) {
 	int override_index = *(volatile int*)&rtw_tx_pwr_idx_override;
 	if (override_index < 0)

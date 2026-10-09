@@ -1105,7 +1105,11 @@ int recvbuf2recvframe(PADAPTER padapter, void *ptr)
 
 		pattrib = &precvframe->u.hdr.attrib;
 
-		if ((padapter->registrypriv.mp_mode == 0) && ((pattrib->crc_err) || (pattrib->icv_err))) {
+		if ((padapter->registrypriv.mp_mode == 0) &&
+		    (pattrib->icv_err ||
+		     (pattrib->crc_err &&
+		      !(rtw_monitor_pass_crc_err &&
+		        check_fwstate(&padapter->mlmepriv, WIFI_MONITOR_STATE) == _TRUE)))) {
 			RTW_INFO("%s: RX Warning! crc_err=%d icv_err=%d, skip!\n", __FUNCTION__, pattrib->crc_err, pattrib->icv_err);
 
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
