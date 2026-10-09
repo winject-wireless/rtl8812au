@@ -218,7 +218,7 @@ endif
 
 ifeq ($(CONFIG_RTL8812A)_$(CONFIG_RTL8821A), y_y)
 
-EXTRA_CFLAGS += -DDRV_NAME=\"rtl88xxau_wfb\"
+EXTRA_CFLAGS += -DDRV_NAME=\"rtl88xxau_winject\"
 ifeq ($(CONFIG_USB_HCI), y)
 USER_MODULE_NAME = 88XXau
 endif
@@ -1533,7 +1533,7 @@ endif
 
 USER_MODULE_NAME ?=
 ifneq ($(USER_MODULE_NAME),)
-MODULE_NAME := $(USER_MODULE_NAME)_wfb
+MODULE_NAME := $(USER_MODULE_NAME)_winject
 endif
 
 EXTRA_CFLAGS += -Wno-missing-prototypes -Wno-header-guard -Wno-missing-declarations
