@@ -3648,6 +3648,8 @@ static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe)
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
 
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
+	u8 is_cck = pattrib->data_rate <= DESC_RATE11M;
+	u8 rf_paths = pHalData->NumTotalRFPath;
 
         u8 tmp_8bit = 0;
 	u16 tmp_16bit = 0;
@@ -3673,14 +3675,18 @@ static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe)
 	u32 tmp_32bit;
 	int i;
 
+	/* CCK supplies combined signal power, not per-path power or SNR. */
+	if (is_cck && rf_paths > 1)
+		rf_paths = 1;
+
 	/* create header */
 	rtap_hdr = (struct ieee80211_radiotap_header *)&hdr_buf[0];
 	rtap_hdr->it_version = PKTHDR_RADIOTAP_VERSION;
 
-	if(pHalData->NumTotalRFPath>0 && pattrib->physt) {
+	if(rf_paths>0 && pattrib->physt) {
 		rtap_hdr->it_present |=	(1<<IEEE80211_RADIOTAP_EXT) |
 			(1<<IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE);
-		if(pHalData->NumTotalRFPath>1) {
+		if(rf_paths>1) {
 			tmp_32bit = (1<<IEEE80211_RADIOTAP_ANTENNA) |
                               (1<<IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
 #if RFMETRICS
@@ -3689,7 +3695,7 @@ static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe)
 #endif
 				(1<<IEEE80211_RADIOTAP_EXT) |
 				(1<<IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE);
-			for(i=0; i<pHalData->NumTotalRFPath-1; i++) {
+			for(i=0; i<rf_paths-1; i++) {
 				memcpy(&hdr_buf[rt_len], &tmp_32bit, 4);
 				rt_len += 4;
 			}
@@ -3698,10 +3704,13 @@ static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe)
 			(1<<IEEE80211_RADIOTAP_DBM_ANTSIGNAL)
 #if RFMETRICS
                                                             |
-			(1<<IEEE80211_RADIOTAP_DBM_ANTNOISE)|
 			(1<<IEEE80211_RADIOTAP_LOCK_QUALITY)
 #endif
                         ;
+#if RFMETRICS
+		if (!is_cck)
+			tmp_32bit |= (1<<IEEE80211_RADIOTAP_DBM_ANTNOISE);
+#endif
 #ifdef CONFIG_RADIOTAP_WITH_RXDESC
 		tmp_32bit |= (1 << IEEE80211_RADIOTAP_VENDOR_NAMESPACE);
 #endif
@@ -3716,6 +3725,11 @@ static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe)
 	/* tsft */
 	if (pattrib->tsfl) {
 		u64 tmp_64bit;
+
+		/* A single CCK namespace leaves the presence words unaligned. */
+		if (is_cck)
+			while (!IS_ALIGNED(rt_len, 8))
+				rt_len++;
 
 		rtap_hdr->it_present |= (1 << IEEE80211_RADIOTAP_TSFT);
 		tmp_64bit = cpu_to_le64(pattrib->tsfl);
@@ -3912,14 +3926,18 @@ static sint fill_radiotap_hdr(_adapter *padapter, union recv_frame *precvframe)
         }
 
 	if (pattrib->physt) {
-		for(i=0; i<pHalData->NumTotalRFPath; i++) {
+		for(i=0; i<rf_paths; i++) {
                         //  IEEE80211_RADIOTAP_DBM_ANTSIGNAL
-			hdr_buf[rt_len] = pattrib->phy_info.rx_pwr[i];
+			hdr_buf[rt_len] = is_cck ?
+				pattrib->phy_info.recv_signal_power :
+				pattrib->phy_info.rx_pwr[i];
 			rt_len ++;
 #if RFMETRICS
                         //  IEEE80211_RADIOTAP_DBM_ANTNOISE
-			hdr_buf[rt_len] = pattrib->phy_info.rx_pwr[i] - pattrib->phy_info.rx_snr[i];
-			rt_len ++;
+			if (!is_cck) {
+				hdr_buf[rt_len] = pattrib->phy_info.rx_pwr[i] - pattrib->phy_info.rx_snr[i];
+				rt_len ++;
+			}
 
                         /* Signal Quality */
 			if (!IS_ALIGNED(rt_len, 2))
