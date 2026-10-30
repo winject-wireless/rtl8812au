@@ -26,6 +26,14 @@ A higher IGI trades weak-signal sensitivity for fewer false alarms: a link works
 down to about (IGI - 110) - 8 dB. See the measurements in the project's loss tests
 for the trade-off on AWUS036ACS (RTL8811AU).
 
+## CCK signal reporting
+
+For CCK frames, radiotap reports the PHY's combined received signal power once,
+using antenna index 0. OFDM frames retain their per-antenna signal reports. CCK
+does not expose per-antenna SNR, so its radiotap header omits the noise field.
+CCK packet-detection thresholds affect reception, not which signal field is
+reported. These RSSI values are receiver estimates, not calibrated RF power.
+
 ## Module name
 
 This build is the module `88XXau_winject` (USB driver name `rtl88xxau_winject`), so it
